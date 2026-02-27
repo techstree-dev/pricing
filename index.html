@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>أسعار الصرف والمعادن</title>
+</head>
+<body>
+
+<h1>💱 أسعار الصرف والمعادن | Exchange & Metals</h1>
+<hr>
+
+<button onclick="setLang('ar')">🇦🇪 عربي</button>
+<button onclick="setLang('en')">🇺🇸 English</button>
+&nbsp;&nbsp;
+<button onclick="fetchAll()">🔄 <span id="lbl-refresh">تحديث</span></button>
+&nbsp;&nbsp;
+<small id="last-update">جاري التحميل...</small>
+
+<hr>
+
+<!-- STATUS -->
+<div id="error-box" style="display:none;color:red;">
+  ⚠️ <span id="error-msg"></span>
+</div>
+
+<!-- USD / AED -->
+<h2>💵 <span id="lbl-currency">سعر الدولار مقابل الدرهم</span></h2>
+<table border="1" cellpadding="8" cellspacing="0">
+  <tr>
+    <th id="lbl-pair">العملة</th>
+    <th id="lbl-rate">السعر</th>
+  </tr>
+  <tr>
+    <td>🇺🇸 1 USD</td>
+    <td id="usd-aed"><i>...</i></td>
+  </tr>
+  <tr>
+    <td>🇦🇪 1 AED</td>
+    <td id="aed-usd"><i>...</i></td>
+  </tr>
+</table>
+
+<br>
+
+<!-- GOLD -->
+<h2>🥇 <span id="lbl-gold">سعر الذهب</span></h2>
+<table border="1" cellpadding="8" cellspacing="0">
+  <tr>
+    <th id="lbl-gold-type">النوع</th>
+    <th id="lbl-usd-col">بالدولار USD</th>
+    <th id="lbl-aed-col">بالدرهم AED</th>
+  </tr>
+  <tr><td id="lbl-oz">أونصة (31.1 غرام)</td>     <td id="gold-oz-usd"><i>...</i></td>   <td id="gold-oz-aed"><i>...</i></td></tr>
+  <tr><td id="lbl-gram">غرام (عيار 24)</td>        <td id="gold-gram-usd"><i>...</i></td> <td id="gold-gram-aed"><i>...</i></td></tr>
+  <tr><td id="lbl-22k">غرام عيار 22</td>           <td id="gold-22-usd"><i>...</i></td>   <td id="gold-22-aed"><i>...</i></td></tr>
+  <tr><td id="lbl-21k">غرام عيار 21</td>           <td id="gold-21-usd"><i>...</i></td>   <td id="gold-21-aed"><i>...</i></td></tr>
+  <tr><td id="lbl-18k">غرام عيار 18</td>           <td id="gold-18-usd"><i>...</i></td>   <td id="gold-18-aed"><i>...</i></td></tr>
+</table>
+
+<br>
+
+<!-- SILVER -->
+<h2>🥈 <span id="lbl-silver">سعر الفضة</span></h2>
+<table border="1" cellpadding="8" cellspacing="0">
+  <tr>
+    <th id="lbl-silver-type">النوع</th>
+    <th id="lbl-usd-col2">بالدولار USD</th>
+    <th id="lbl-aed-col2">بالدرهم AED</th>
+  </tr>
+  <tr><td id="lbl-silver-oz">أونصة فضة</td>   <td id="silver-oz-usd"><i>...</i></td>   <td id="silver-oz-aed"><i>...</i></td></tr>
+  <tr><td id="lbl-silver-g">غرام فضة</td>     <td id="silver-gram-usd"><i>...</i></td> <td id="silver-gram-aed"><i>...</i></td></tr>
+</table>
+
+<br>
+
+<!-- CONVERTER -->
+<h2>🔄 <span id="lbl-conv-title">محول العملات</span></h2>
+<input type="number" id="conv-amount" value="100" min="0" size="10" oninput="convert()">
+<select id="conv-from" onchange="convert()">
+  <option value="USD">USD دولار</option>
+  <option value="AED">AED درهم</option>
+  <option value="GOLD_G">ذهب (غرام 24)</option>
+  <option value="SILVER_G">فضة (غرام)</option>
+</select>
+<strong>=</strong>
+<strong id="conv-result">...</strong>
+
+<br><br>
+<small id="lbl-auto">يتحدث تلقائياً كل دقيقة</small>
+
+<hr>
+<small id="lbl-source">المصادر: Yahoo Finance (XAU=X, XAG=X, USDAED=X) عبر allorigins.win proxy</small>
+
+<script>
+// =============================================
+// STATE
+// =============================================
+let usdToAed    = 3.6725;
+let goldOzUsd   = 0;
+let silverOzUsd = 0;
+const TROY_OZ   = 31.1035; // grams per troy ounce
+
+// =============================================
+// LANG
+// =============================================
+let lang = 'ar';
+
+const T = {
+  ar: {
+    'lbl-refresh':     'تحديث',
+    'lbl-currency':    'سعر الدولار مقابل الدرهم',
+    'lbl-pair':        'العملة',
+    'lbl-rate':        'السعر',
+    'lbl-gold':        'سعر الذهب',
+    'lbl-gold-type':   'النوع',
+    'lbl-usd-col':     'بالدولار USD',
+    'lbl-aed-col':     'بالدرهم AED',
+    'lbl-oz':          'أونصة (31.1 غرام)',
+    'lbl-gram':        'غرام (عيار 24)',
+    'lbl-22k':         'غرام عيار 22',
+    'lbl-21k':         'غرام عيار 21',
+    'lbl-18k':         'غرام عيار 18',
+    'lbl-silver':      'سعر الفضة',
+    'lbl-silver-type': 'النوع',
+    'lbl-usd-col2':    'بالدولار USD',
+    'lbl-aed-col2':    'بالدرهم AED',
+    'lbl-silver-oz':   'أونصة فضة',
+    'lbl-silver-g':    'غرام فضة',
+    'lbl-conv-title':  'محول العملات',
+    'lbl-auto':        'يتحدث تلقائياً كل دقيقة',
+    'lbl-source':      'المصادر: Yahoo Finance (XAU=X, XAG=X, USDAED=X) عبر allorigins.win proxy',
+  },
+  en: {
+    'lbl-refresh':     'Refresh',
+    'lbl-currency':    'USD / AED Exchange Rate',
+    'lbl-pair':        'Pair',
+    'lbl-rate':        'Rate',
+    'lbl-gold':        'Gold Prices',
+    'lbl-gold-type':   'Type',
+    'lbl-usd-col':     'USD',
+    'lbl-aed-col':     'AED',
+    'lbl-oz':          'Troy Ounce (31.1g)',
+    'lbl-gram':        'Per Gram (24K)',
+    'lbl-22k':         'Per Gram (22K)',
+    'lbl-21k':         'Per Gram (21K)',
+    'lbl-18k':         'Per Gram (18K)',
+    'lbl-silver':      'Silver Prices',
+    'lbl-silver-type': 'Type',
+    'lbl-usd-col2':    'USD',
+    'lbl-aed-col2':    'AED',
+    'lbl-silver-oz':   'Troy Ounce',
+    'lbl-silver-g':    'Per Gram',
+    'lbl-conv-title':  'Currency Converter',
+    'lbl-auto':        'Auto-refreshes every 60 seconds',
+    'lbl-source':      'Source: Yahoo Finance (XAU=X, XAG=X, USDAED=X) via allorigins.win proxy',
+  }
+};
+
+function setLang(l) {
+  lang = l;
+  document.documentElement.lang = l;
+  document.documentElement.dir  = l === 'ar' ? 'rtl' : 'ltr';
+  for (const [id, text] of Object.entries(T[l])) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+  convert();
+}
+
+// =============================================
+// FETCH via allorigins proxy (solves CORS)
+// =============================================
+async function yahooFetch(symbol) {
+  const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1m&range=1d`;
+  const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`;
+  const res  = await fetch(proxyUrl);
+  const data = await res.json();
+  const json = JSON.parse(data.contents);
+  // Get latest close or current price
+  const meta = json.chart.result[0].meta;
+  return meta.regularMarketPrice || meta.previousClose;
+}
+
+// =============================================
+// FETCH ALL
+// =============================================
+async function fetchAll() {
+  document.getElementById('last-update').textContent =
+    lang === 'ar' ? '⏳ جاري التحميل...' : '⏳ Loading...';
+  document.getElementById('error-box').style.display = 'none';
+
+  try {
+    // Fetch all 3 in parallel
+    const [aed, gold, silver] = await Promise.all([
+      yahooFetch('USDAED=X'),
+      yahooFetch('GC=F'),   // Gold futures (XAU)
+      yahooFetch('SI=F'),   // Silver futures (XAG)
+    ]);
+
+    usdToAed    = aed;
+    goldOzUsd   = gold;
+    silverOzUsd = silver;
+
+    renderAll();
+
+    const now = new Date().toLocaleTimeString();
+    document.getElementById('last-update').textContent =
+      (lang === 'ar' ? '✅ آخر تحديث: ' : '✅ Last update: ') + now;
+
+  } catch (e) {
+    // Fallback: try backup API for currency at least
+    try {
+      const r = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+      const d = await r.json();
+      usdToAed = d.rates.AED || 3.6725;
+    } catch (_) {
+      usdToAed = 3.6725;
+    }
+
+    document.getElementById('error-box').style.display = '';
+    document.getElementById('error-msg').textContent =
+      lang === 'ar'
+        ? 'فشل تحميل أسعار المعادن. تأكد من اتصالك بالإنترنت وحاول مجدداً.'
+        : 'Failed to load metal prices. Check your internet and try again.';
+    document.getElementById('last-update').textContent =
+      lang === 'ar' ? '❌ فشل التحميل' : '❌ Load failed';
+
+    // Show AED at least if we got it
+    if (usdToAed) {
+      document.getElementById('usd-aed').textContent = usdToAed.toFixed(4) + ' AED';
+      document.getElementById('aed-usd').textContent = (1/usdToAed).toFixed(6) + ' USD';
+    }
+  }
+}
+
+// =============================================
+// RENDER
+// =============================================
+function renderAll() {
+  // Currency
+  document.getElementById('usd-aed').textContent = usdToAed.toFixed(4) + ' AED';
+  document.getElementById('aed-usd').textContent = (1 / usdToAed).toFixed(6) + ' USD';
+
+  // Gold
+  const goldGram = goldOzUsd / TROY_OZ;
+  document.getElementById('gold-oz-usd').textContent   = fmt(goldOzUsd, '$');
+  document.getElementById('gold-oz-aed').textContent   = fmt(goldOzUsd * usdToAed, '', 'د.إ');
+  document.getElementById('gold-gram-usd').textContent = fmt(goldGram, '$', '', 2);
+  document.getElementById('gold-gram-aed').textContent = fmt(goldGram * usdToAed, '', 'د.إ', 2);
+  document.getElementById('gold-22-usd').textContent   = fmt(goldGram * (22/24), '$', '', 2);
+  document.getElementById('gold-22-aed').textContent   = fmt(goldGram * (22/24) * usdToAed, '', 'د.إ', 2);
+  document.getElementById('gold-21-usd').textContent   = fmt(goldGram * (21/24), '$', '', 2);
+  document.getElementById('gold-21-aed').textContent   = fmt(goldGram * (21/24) * usdToAed, '', 'د.إ', 2);
+  document.getElementById('gold-18-usd').textContent   = fmt(goldGram * (18/24), '$', '', 2);
+  document.getElementById('gold-18-aed').textContent   = fmt(goldGram * (18/24) * usdToAed, '', 'د.إ', 2);
+
+  // Silver
+  const silverGram = silverOzUsd / TROY_OZ;
+  document.getElementById('silver-oz-usd').textContent   = fmt(silverOzUsd, '$', '', 3);
+  document.getElementById('silver-oz-aed').textContent   = fmt(silverOzUsd * usdToAed, '', 'د.إ', 3);
+  document.getElementById('silver-gram-usd').textContent = fmt(silverGram, '$', '', 4);
+  document.getElementById('silver-gram-aed').textContent = fmt(silverGram * usdToAed, '', 'د.إ', 4);
+
+  convert();
+}
+
+function fmt(val, prefix='', suffix='', decimals=2) {
+  return prefix + val.toFixed(decimals) + (suffix ? ' ' + suffix : '');
+}
+
+// =============================================
+// CONVERTER
+// =============================================
+function convert() {
+  const amount = parseFloat(document.getElementById('conv-amount').value) || 0;
+  const from   = document.getElementById('conv-from').value;
+  const goldGram   = goldOzUsd   / TROY_OZ;
+  const silverGram = silverOzUsd / TROY_OZ;
+  let result = '';
+
+  if (from === 'USD') {
+    result = (amount * usdToAed).toFixed(4) + ' AED';
+  } else if (from === 'AED') {
+    result = (amount / usdToAed).toFixed(6) + ' USD';
+  } else if (from === 'GOLD_G') {
+    const usd = amount * goldGram;
+    result = '$' + usd.toFixed(2) + ' / ' + (usd * usdToAed).toFixed(2) + ' AED';
+  } else if (from === 'SILVER_G') {
+    const usd = amount * silverGram;
+    result = '$' + usd.toFixed(4) + ' / ' + (usd * usdToAed).toFixed(4) + ' AED';
+  }
+
+  document.getElementById('conv-result').textContent = result || '...';
+}
+
+// =============================================
+// INIT
+// =============================================
+fetchAll();
+setInterval(fetchAll, 60000);
+</script>
+</body>
+</html>
